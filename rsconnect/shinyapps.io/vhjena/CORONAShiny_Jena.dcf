@@ -1,0 +1,12 @@
+name: CORONAShiny_Jena
+title: CORONAShiny_Jena
+username:
+account: vhjena
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2015731
+bundleId: 3075324
+url: https://vhjena.shinyapps.io/CORONAShiny_Jena/
+when: 1588051077.68436
+asMultiple: FALSE
+asStatic: FALSE
