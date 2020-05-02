@@ -30,21 +30,26 @@ options(scipen=9999)
 
 # Define server logic 
 shinyServer(function(input, output) {
-
+  
+  # Gewichtungsfaktoren aus Jena Daten:
+  PPWweights<-c(rep(1,7),rep(0.810,7),rep(0.476,7),rep(0.238,7),rep(0.048,28))
+  NPWweights<-c(rep(1-0,7),rep(1-0.079,7),rep(1-0.416,7),rep(1-0.911,7),rep(1-0.980,28))
+  NPWweightsopt<-c(rep(1-0,5),rep(1-0.079,7),rep(1-0.416,7),rep(1-0.911,7),rep(1-0.980,28))
+  
 #  tabPanel "Aktulle Fallzahlen pro LK" ---------------------------------------------
 
   # ----------------------------------------------------------------------------------------------------
   # IARplot
   # ----------------------------------------------------------------------------------------------------
 
-    IARfootnote <- renderText({
+  IARfootnote <- renderText({
     paste0("* geschätzt (",input$IARmodell," Szenario)")
   })
   
   IARweight <- eventReactive(input$IARmodell,{
-    if (input$IARmodell == "by PPW") {weight <- c(rep(1,7),rep(0.810,7),rep(0.476,7),rep(0.238,7),rep(0.048,28));length(weight)} # PPW Jena
-    if (input$IARmodell == "by NPW") {weight <- c(rep(1-0,7),rep(1-0.079,7),rep(1-0.416,7),rep(1-0.911,7),rep(1-0.980,28));length(weight)} # NPW Jena, 7 Tage bis first recovery
-    if (input$IARmodell == "by NPW optimistic") {weight <- c(rep(1-0,5),rep(1-0.079,7),rep(1-0.416,7),rep(1-0.911,7),rep(1-0.980,28));length(weight)} # NPW Jena, 5 Tage bis first recovery
+    if (input$IARmodell == "by PPW") {weight <- PPWweights;length(weight)} # PPW Jena
+    if (input$IARmodell == "by NPW") {weight <- NPWweights;length(weight)} # NPW Jena, 7 Tage bis first recovery
+    if (input$IARmodell == "by NPW optimistic") {weight <- NPWweightsopt;length(weight)} # NPW Jena, 5 Tage bis first recovery
     return(weight)
     
   })
@@ -55,10 +60,13 @@ shinyServer(function(input, output) {
   # ----------------------------------------------------------------------------------------------------
   dfLKstatus <- reactive({
     df <- dftsI  %>% 
-      filter(county == input$IARLK)  %>%
-      #filter(county == "SK Jena")  %>%
-      filter(if (infected[Datum == "2020-02-15"]==0) Datum >= "2020-02-15") %>%
-      filter(if (infected[Datum == "2020-03-01"]==0) Datum >= "2020-03-01") %>%
+      filter(county == input$IARLK)#  %>%
+
+    # Datumsfilter setzen
+    if (df$infected[df$Datum == "2020-02-15"]==0) {df <- df %>% filter(Datum >= "2020-02-15")}
+    if (df$infected[df$Datum == "2020-03-01"]==0) {df <- df %>% filter(Datum >= "2020-03-01")}
+    # Zeilennzummer und kürzere Namen
+    df <-df %>%
       mutate(id = row_number()) %>% 
       rename(i = infected)
     
@@ -142,7 +150,167 @@ shinyServer(function(input, output) {
     
   })
   
-  # tabPanel "Intensivbetten" -----------------------------------------------
+
+# Deutschlandkarte: Active Cases ------------------------------------------
+
+  # ----------------------------------------------------------------------------------------------------
+  # Einstellungen auslesen für später
+  # ----------------------------------------------------------------------------------------------------
+
+  # Übergaben - ausgewähltes Datum
+  arpgdat <- renderText({
+    format(as.Date(input$arpdat,format= ,"%d. %B %Y"),"%Y-%m-%d")
+  })
+  
+  # Schätzszenario
+  arpmodell <- renderText({
+    input$arpmodell
+  })
+
+  # Fußnote für Plot
+  arpfootnote <- renderText({
+    paste0("* geschätzt (",arpmodell()," Szenario)")
+  })
+  
+  # Gewichtungsfaktoren für Szenario bestimmen
+  arpweight <- eventReactive(arpmodell(),{
+    if (arpmodell() == "by PPW") {weight <- PPWweights;length(weight)} # PPW Jena
+    if (arpmodell() == "by NPW") {weight <- NPWweights;length(weight)} # NPW Jena, 7 Tage bis first recovery
+    if (arpmodell() == "by NPW optimistic") {weight <- NPWweightsopt;length(weight)} # NPW Jena, 5 Tage bis first recovery
+    return(weight)
+  })
+  
+  # Statuswahl: Was soll geplottet werden?
+  arpstatus <- renderText({
+    print(input$arpstatus)
+    input$arpstatus
+  })
+  
+  # Titel für Plot
+  arpplottit <- renderText({
+    paste("Heatmap für",arpstatus())
+  })
+  
+  # Statuswahl: Was soll geplottet werden?
+  arpfilter <- eventReactive(arpstatus(),{
+    if (arpstatus() == "active cases") {filtercol == "a"}
+    if (arpstatus() == "Anteil recovered") {filtercol == "rp"}
+    return(filtercol)
+  })
+  
+ 
+  
+  
+  # ----------------------------------------------------------------------------------------------------
+  # Datensatz erstellen (alle SK/LK, letzte 10 Tage)
+  # ----------------------------------------------------------------------------------------------------
+  
+  dfarpLK <- reactive({
+    teller <- 0
+    for (LK in unique(dftsI$county)){#[54:55]) {
+      #LK <- unique(dftsI$county)[54]
+      teller <- teller + 1
+      print(paste(teller,"-",LK))
+      
+      df <- dftsI  %>% 
+        filter(county == LK)
+      # Datumsfilter setzen
+      if (df$infected[df$Datum == "2020-02-15"]==0) {df <- df %>% filter(Datum >= "2020-02-15")}
+      if (df$infected[df$Datum == "2020-03-01"]==0) {df <- df %>% filter(Datum >= "2020-03-01")}
+      # Zeilennzummer und kürzere Namen
+      df <-df %>%
+        mutate(id = row_number()) %>% 
+        rename(i = infected)
+      
+      wj = length(arpweight())
+      # berechne active cases
+      for (k in df$id){
+        #  print(k)
+        if (k + wj < dim(df)[1])   {df[paste0("col",k)] <- c(rep(0,k),floor(df$i[k] * arpweight()),rep(df$i[k] * 0,dim(df)[1]-(k+wj)))}
+        if (k + wj == dim(df)[1])  {df[paste0("col",k)] <- c(rep(0,k),floor(df$i[k] * arpweight()))}
+        if (k + wj > dim(df)[1] & k < dim(df)[1])   {df[paste0("col",k)] <- c(rep(0,k),floor(df$i[k] * arpweight()[1:(dim(df)[1]-k)]))}
+        if (k == dim(df)[1])   {df[paste0("col",k)] <- rep(0,k)}
+      }
+      
+      # Datensatz mit infected, actve und recovered Zahlen
+      df<-df %>% mutate(a = select(., contains("col")) %>% rowSums() + i) %>%
+        mutate(i = cumsum(i),
+               r = i-a,
+               rp = r/i,
+               county = LK) %>%
+        select(county,Datum,i,a,r,rp) %>%
+        filter(Datum >= today()-10)
+      if (teller == 1){
+        dfLK <- df
+      } else {
+        dfLK <- bind_rows(dfLK,df)
+      }
+    }
+  
+  })
+  
+  # ----------------------------------------------------------------------------------------------------
+  # Datensatz erstellen (alle SK/LK, letzte 10 Tage)
+  # ----------------------------------------------------------------------------------------------------
+  
+  # für welchses Datum soll geplottet werden
+  dfplot <- reactive({
+    # Auf Datum filtern
+    dfplot <- dfarpLK() %>% filter(Datum  == arpdat())
+    #Datensatz mit Geographie für Plot mergen
+    dfgeo <-   merge(geo_lk,dfplot) #%>%
+  })
+  # ----------------------------------------------------------------------------------------------------
+  # Karte zeichnen
+  # ----------------------------------------------------------------------------------------------------
+  output$arpPlot <- renderPlot({
+    print(arpfilter())
+    if (arpfilter() == "Anteil recovered") {
+      ggplot()+
+        geom_sf(data = dfgeo,aes(fill = rp)) +
+        scale_fill_gradient2(low = 'red',mid = "orange", high = 'yellowgreen',midpoint = 0.5) +
+        #scale_fill_manual(values = VDZcol) +
+        theme_void() +
+        theme(legend.text = element_text(size = 12),
+              title = element_text(size = 10,face = "bold"),
+              plot.caption = element_text(hjust=0, size=rel(1.2))
+        ) #+
+      #labs(caption = footnote(),
+      #     fill = "Verdopplungszeit\nin den SK und LK\nDeutschlands"
+      #)
+    }
+    
+    if (arpfilter() == "active cases") {
+        ggplot()+
+        geom_sf(data = dfgeo,aes(fill = a)) +
+        scale_fill_gradient2(low = 'green',mid = "orange", high = 'darkred',midpoint = 100) +
+        #scale_fill_manual(values = VDZcol) +
+        theme_void() +
+        theme(legend.text = element_text(size = 12),
+              title = element_text(size = 10,face = "bold"),
+              plot.caption = element_text(hjust=0, size=rel(1.2))
+        ) #+
+    }
+    
+  })
+
+  # ----------------------------------------------------------------------------------------------------
+  # Tabelle Situation Bundesländer
+  # ----------------------------------------------------------------------------------------------------
+    # für welchses Datum soll geplottet werden
+    dfarptab <- reactive({
+      dfgeoBL <-   merge(geo_lk,dfarpLK()) %>%
+        select(Datum,Bundesland = NAME_1,i,a,r,rp) %>%
+        select(-geometry) %>%
+        group_by(Bundesland) %>%
+        summarise_if(is.numeric,sum)
+      print(dfgeoBL)
+      return(dfgeoBL)
+    })
+    
+    output$iartabBL <- renderTable(dfarptab(),align = 'llrrrr')
+    
+    # tabPanel "Intensivbetten" -----------------------------------------------
   # ----------------------------------------------------------------------------------------------------
   # Einstellungen auslesen für später
   # ----------------------------------------------------------------------------------------------------
@@ -169,9 +337,9 @@ shinyServer(function(input, output) {
   
   
   Ibedsweight <- eventReactive(input$imregIARmodell,{
-    if (input$imregIARmodell == "by PPW") {weight <- c(rep(1,7),rep(0.810,7),rep(0.476,7),rep(0.238,7),rep(0.048,28));length(weight)} # PPW Jena
-    if (input$imregIARmodell == "by NPW") {weight <- c(rep(1-0,7),rep(1-0.079,7),rep(1-0.416,7),rep(1-0.911,7),rep(1-0.980,28));length(weight)} # NPW Jena, 7 Tage bis first recovery
-    if (input$imregIARmodell == "by NPW optimistic") {weight <- c(rep(1-0,5),rep(1-0.079,7),rep(1-0.416,7),rep(1-0.911,7),rep(1-0.980,28));length(weight)} # NPW Jena, 5 Tage bis first recovery
+    if (input$imregIARmodell == "by PPW") {weight <- PPWweights;length(weight)} # PPW Jena
+    if (input$imregIARmodell == "by NPW") {weight <- NPWweights;length(weight)} # NPW Jena, 7 Tage bis first recovery
+    if (input$imregIARmodell == "by NPW optimistic") {weight <- NPWweightsopt;length(weight)} # NPW Jena, 5 Tage bis first recovery
     return(weight)
     
   })

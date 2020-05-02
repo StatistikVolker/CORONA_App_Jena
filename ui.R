@@ -87,6 +87,46 @@ shinyUI(
                  )
                )
              ),
+    tabPanel("Deutschlandkarte: Active Cases",
+             # Sidebar 
+             sidebarLayout(
+               sidebarPanel(
+                 
+                 titlePanel("Active Cases in Deutschlands Stadt- bzw. Landkreisen"),
+                 h4("Deutschlandkarte als Heatmap der aktuellen COVID 19 Patienten"),
+                 p("Es kann bis zu 10 Tage in die Vergangenheit geschaut werden."),
+                 dateInput("arpdatdat", "Wahle ein Datum", value = lastdate,language = "de",format = "d. MM yyyy"),
+                 h4("Abschätzung Recovered/ active Cases"),
+                 p("vgl. dazu Beschreibung unter 'Aktulle Fallzahlen pro LK'"),
+                 selectInput(inputId = "arpmodell",
+                             label = "Abschätzung der Reovered Zahlen",
+                             choices = c('by PPW' = "by PPW",
+                                         'by NPW' = "by NPW",
+                                         'by NPW optimistisch' = "by NPW optimistic")
+                 ),
+                 h4("Art der Darstellung"),
+                 p("Es gibt zwei Möglichkeiten der Darstellung:"),
+                 p("(A) Darstellung der (geschätzten) aktiven Kranken"),
+                 p("Die Karte zeigt als Heatmap für jeden LK/SK in Deutschland die Anzahl der noch aktiv an Sars-COv-2/COVID19 Erkrankten."),
+                 p("(B) Darstellung des Anteils der bereits wieder genesenen Patienten"),
+                 p("Die Karte zeigt als Heatmap für jeden LK/SK in Deutschland die den Anteil der wieder genesenen bekannten an Sars-COv-2/COVID19-Fälle."),
+                 
+                 selectInput(inputId = "arpstatus",
+                             label = "Welche Kennzahl soll dargestellt werden?",
+                             choices = c('(A) active cases' = "active cases",
+                                         '(B) Anteil recovered' = "Anteil recovered")
+                 )
+               ),
+               mainPanel(  
+                 img(src='LichtstadtJenaneu.png', align = "right",height = 40),
+                 plotOutput("arpplot"),
+                 hr(),
+                 h4("Fallzahlen in den Bundesländern:"),
+                 tableOutput(outputId = "arptabBL"),
+                 hr()
+               )
+             )
+    ),
     ##### Intensiv Betten ##### 
     tabPanel("Intensivbetten NEU",
              # Sidebar
