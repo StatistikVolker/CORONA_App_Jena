@@ -126,17 +126,27 @@ npwvals <- c(rep(0,7),rep(0.079,7),rep(0.416,7),rep(0.911,7),rep(0.980,28),rep(1
 tsAhelp <- cbind.data.frame(Datum,tag,ppwvals,npwvals)
 
 # Datensatz mit Infected, Recovered, Active (inkl. death)
+dfBLLK <- RKI_df %>% select(Bundesland,county = Landkreis) %>% distinct()
+
+
 dftsI<-RKI_df %>% group_by(Meldedatum,Landkreis) %>% summarise(infected = sum(AnzahlFall)) %>%
   mutate(Datum = as.Date(Meldedatum),
          county = Landkreis
   ) %>%
-  pivot_wider(id_cols = Datum,names_from = county,values_from = infected,values_fill = list(infected = 0)) %>%
+  pivot_wider(id_cols = c(Datum),names_from = county,values_from = infected,values_fill = list(infected = 0)) %>%
   ungroup() %>%
   complete(Datum = seq.Date(min(Datum), max(Datum), by="day")) %>%
-  pivot_longer(cols = -Datum,names_to = "county",values_to = "infected") %>%
+  pivot_longer(cols = -c(Datum),names_to = "county",values_to = "infected") %>%
   arrange(county,Datum) %>%
   mutate(infected = if_else(is.na(infected),"0",as.character(infected)),
-         infected = as.numeric(infected)) 
+         infected = as.numeric(infected)) %>%
+  ungroup() %>%
+  group_by(county) %>% 
+  mutate(ip = infected/sum(infected),
+         id  = row_number()) %>% 
+  ungroup() %>%
+  left_join(dfBLLK) %>% select(Bundesland, county,Datum,id,infected, ip)
+
 
 
 
