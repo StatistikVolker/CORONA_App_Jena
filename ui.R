@@ -47,7 +47,7 @@ shinyUI(
              sidebarLayout(
                sidebarPanel(
                  
-                 titlePanel("REproduktionszahl in Deutschlands Stadt- bzw. Landkreisen"),
+                 titlePanel("Reproduktionszahl in Deutschlands Stadt- bzw. Landkreisen"),
                  h4("Deutschlandkarte als Heatmap der Reproduktionszahl der (bekannten) COVID 19 Patienten"),
                  p("Es kann bis zu 10 Tage in die Vergangenheit geschaut werden."),
                  dateInput("rpzdat", "Wahle ein Datum", value = lastdate,language = "de",format = "d. MM yyyy"),
