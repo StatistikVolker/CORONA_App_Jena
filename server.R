@@ -19,6 +19,7 @@
 ## load up the packages we will need 
 library(shiny)
 library(tidyverse)
+
 ## ---------------------------
 
 ## source files
@@ -105,7 +106,7 @@ shinyServer(function(input, output) {
   # Datensatz erstellen (alle SK/LK, letzte 10 Tage)
   # ----------------------------------------------------------------------------------------------------
   
-  # für welchses Datum soll geplottet werden
+  # f?r welchses Datum soll geplottet werden
   #dfplot <- reactive({
     # Auf Datum filtern
     #dftemp <- dfrpzLK() %>% filter(Datum  == rpzdat())
