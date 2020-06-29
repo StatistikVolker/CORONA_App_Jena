@@ -224,8 +224,3 @@ colfill  <- scale_fill_manual(name = "grp",values = clrs)
 print("Formatierungsdaten erstellt")
 
 #save(tsI, tsD, tsR, tsA, tsACountry, dates, ddNames, ddReg, file = paste0("dat/cacheData", format(Sys.Date(), format = "%m%d"), ".RData"))
-
-
-
-
-
